@@ -8,8 +8,8 @@ import (
 // Auth grants access to the Auth product
 type Auth interface {
 	AddMFA() ([]Account, string, error)
-	GetData()
-	AddUser(string, string, string, string) ([]Account, string, error)
+	GetData(string) ([]Account, MFA, error)
+	AddUser(string, string, string, string) ([]Account, string, MFA, error)
 	UpdateUser()
 	DeleteUser()
 }
@@ -32,7 +32,7 @@ func UseAuth(clnt Client) Auth {
 	}
 }
 
-// Account ...
+// Account contains bank info after a successful auth
 type Account struct {
 	ID              string `json:"_id"`
 	Item            string `json:"_item"`
@@ -54,6 +54,13 @@ type Account struct {
 	} `json:"numbers"`
 }
 
+// MFA is returned with instructions to handle an MFA option
+type MFA struct {
+	Type        string            `json:"type"`
+	Mfa         map[string]string `json:"mfa"`
+	AccessToken string            `json:"access_token"`
+}
+
 // authRequest is used to send an auth login request to Plaid
 type authRequest struct {
 	ClientID string `json:"client_id"`
@@ -62,6 +69,13 @@ type authRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Pin      string `json:"pin,omitempty"`
+}
+
+// getRequest ...
+type getRequest struct {
+	ClientID    string `json:"client_id"`
+	Secret      string `json:"secret"`
+	AccessToken string `json:"access_token"`
 }
 
 // accountRes is used to unmarshal accounts
@@ -75,14 +89,25 @@ func (a *auth) AddMFA() ([]Account, string, error) {
 	return nil, "", nil
 }
 
-// GetData ...
-func (a *auth) GetData() {}
+// GetData fetches data from a user already in the auth product
+func (a *auth) GetData(accessToken string) ([]Account, MFA, error) {
+	bts, err := json.Marshal(getRequest{
+		ClientID:    a.clientID,
+		Secret:      a.clientSecret,
+		AccessToken: accessToken,
+	})
+	if err != nil {
+		return nil, MFA{}, err
+	}
+	accts, _, mfa, err := handleAuthResponse(post(a.remote+"/get", bytes.NewBuffer(bts)))
+	return accts, mfa, err
+}
 
 // AddUser adds an auth user to plaid and returns a slice of accounts, an access
 // token or an error if these fail. If the user requires MFA then nil will be
 // passed instead of accounts, an access token will be passed, and an
 // MfaRequired error is returned
-func (a *auth) AddUser(username, password, institution, pin string) ([]Account, string, error) {
+func (a *auth) AddUser(username, password, institution, pin string) ([]Account, string, MFA, error) {
 	// build request
 	bts, err := json.Marshal(authRequest{
 		ClientID: a.clientID,
@@ -93,27 +118,10 @@ func (a *auth) AddUser(username, password, institution, pin string) ([]Account, 
 		Pin:      pin,
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, "", MFA{}, err
 	}
 	// send request and parse errors
-	res, err := post(a.remote, bytes.NewBuffer(bts))
-	if err != nil && err == ErrMfaRequired {
-		// return mfa required and pull the access token out of the response
-		ar := accountsRes{}
-		if err = json.Unmarshal(res, &ar); err != nil {
-			return nil, "", err
-		}
-		return nil, ar.AccessToken, ErrMfaRequired
-	}
-	if err != nil {
-		return nil, "", err
-	}
-	// unmarshal and return the accessed accounts and the access token
-	ar := accountsRes{}
-	if err := json.Unmarshal(res, &ar); err != nil {
-		return nil, "", err
-	}
-	return ar.Accounts, ar.AccessToken, nil
+	return handleAuthResponse(post(a.remote, bytes.NewBuffer(bts)))
 }
 
 // UpdateUser ...
@@ -121,3 +129,23 @@ func (a *auth) UpdateUser() {}
 
 // DeleteUser ...
 func (a *auth) DeleteUser() {}
+
+func handleAuthResponse(res []byte, err error) ([]Account, string, MFA, error) {
+	if err != nil && err == ErrMfaRequired {
+		// return mfa required and pull the access token out of the response
+		mfa := MFA{}
+		if err = json.Unmarshal(res, &mfa); err != nil {
+			return nil, "", MFA{}, err
+		}
+		return nil, mfa.AccessToken, mfa, ErrMfaRequired
+	}
+	if err != nil {
+		return nil, "", MFA{}, err
+	}
+	// unmarshal and return the accessed accounts and the access token
+	ar := accountsRes{}
+	if err := json.Unmarshal(res, &ar); err != nil {
+		return nil, "", MFA{}, err
+	}
+	return ar.Accounts, ar.AccessToken, MFA{}, nil
+}

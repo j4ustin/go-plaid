@@ -63,8 +63,5 @@ func post(remote string, payload *bytes.Buffer) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := checkStatusCode(res.StatusCode, body); err != nil {
-		return nil, err
-	}
-	return body, nil
+	return body, checkStatusCode(res.StatusCode, body)
 }
