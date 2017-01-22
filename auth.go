@@ -97,13 +97,13 @@ func (a *auth) AddUser(username, password, institution, pin string) ([]Account, 
 	}
 	// send request and parse errors
 	res, err := post(a.remote, bytes.NewBuffer(bts))
-	if err != nil && err == MfaRequired {
+	if err != nil && err == ErrMfaRequired {
 		// return mfa required and pull the access token out of the response
 		ar := accountsRes{}
 		if err = json.Unmarshal(res, &ar); err != nil {
 			return nil, "", err
 		}
-		return nil, ar.AccessToken, MfaRequired
+		return nil, ar.AccessToken, ErrMfaRequired
 	}
 	if err != nil {
 		return nil, "", err

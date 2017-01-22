@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	// MfaRequired is returned when MFA is required from the client
-	MfaRequired = errors.New("MFA Required")
+	// ErrMfaRequired is returned when MFA is required from the client
+	ErrMfaRequired = errors.New("MFA Required")
 )
 
 // errorMessage is used to unmarshal error messages from Plaid
@@ -25,7 +25,7 @@ func checkStatusCode(statusCode int, body []byte) error {
 	case http.StatusOK:
 		return nil
 	case http.StatusCreated:
-		return MfaRequired
+		return ErrMfaRequired
 	default:
 		em := errorMessage{}
 		if err := json.Unmarshal(body, &em); err != nil {
