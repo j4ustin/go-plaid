@@ -65,3 +65,37 @@ func post(remote string, payload *bytes.Buffer) ([]byte, error) {
 	}
 	return body, checkStatusCode(res.StatusCode, body)
 }
+
+func patch(remote string, payload *bytes.Buffer) ([]byte, error) {
+	req, err := http.NewRequest("PATCH", remote, payload)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, checkStatusCode(res.StatusCode, body)
+}
+
+func delete(remote string, payload *bytes.Buffer) ([]byte, error) {
+	req, err := http.NewRequest("DELETE", remote, payload)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, checkStatusCode(res.StatusCode, body)
+}

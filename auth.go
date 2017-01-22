@@ -7,11 +7,11 @@ import (
 
 // Auth grants access to the Auth product
 type Auth interface {
-	AddMFA() ([]Account, string, error)
+	MfaStep(string, string) ([]Account, string, MFA, error)
 	GetData(string) ([]Account, MFA, error)
 	AddUser(string, string, string, string) ([]Account, string, MFA, error)
-	UpdateUser()
-	DeleteUser()
+	UpdateUser(string, string, string) ([]Account, string, MFA, error)
+	DeleteUser(string) error
 }
 
 // auth sets up an Auth service client
@@ -71,8 +71,31 @@ type authRequest struct {
 	Pin      string `json:"pin,omitempty"`
 }
 
+// mfaRequest is used to send a response to an MFA step
+type mfaRequest struct {
+	ClientID    string `json:"client_id"`
+	Secret      string `json:"secret"`
+	AccessToken string `json:"access_token"`
+	Mfa         string `json:"mfa"`
+}
+
 // getRequest ...
 type getRequest struct {
+	ClientID    string `json:"client_id"`
+	Secret      string `json:"secret"`
+	AccessToken string `json:"access_token"`
+}
+
+// updateRequest ...
+type updateRequest struct {
+	ClientID    string `json:"client_id"`
+	Secret      string `json:"secret"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	AccessToken string `json:"access_token"`
+}
+
+type deleteRequest struct {
 	ClientID    string `json:"client_id"`
 	Secret      string `json:"secret"`
 	AccessToken string `json:"access_token"`
@@ -84,9 +107,18 @@ type accountsRes struct {
 	AccessToken string    `json:"access_token"`
 }
 
-// AddMFA ...
-func (a *auth) AddMFA() ([]Account, string, error) {
-	return nil, "", nil
+// MfaStep is used to request a new MFA type
+func (a *auth) MfaStep(accessToken, mfaAnswer string) ([]Account, string, MFA, error) {
+	bts, err := json.Marshal(mfaRequest{
+		ClientID:    a.clientID,
+		Secret:      a.clientSecret,
+		AccessToken: accessToken,
+		Mfa:         mfaAnswer,
+	})
+	if err != nil {
+		return nil, "", MFA{}, err
+	}
+	return handleAuthResponse(post(a.remote+"/step", bytes.NewBuffer(bts)))
 }
 
 // GetData fetches data from a user already in the auth product
@@ -124,11 +156,34 @@ func (a *auth) AddUser(username, password, institution, pin string) ([]Account, 
 	return handleAuthResponse(post(a.remote, bytes.NewBuffer(bts)))
 }
 
-// UpdateUser ...
-func (a *auth) UpdateUser() {}
+// UpdateUser is used to update credentials to a user's bank
+func (a *auth) UpdateUser(username, password, accessToken string) ([]Account, string, MFA, error) {
+	bts, err := json.Marshal(updateRequest{
+		ClientID:    a.clientID,
+		Secret:      a.clientSecret,
+		Username:    username,
+		Password:    password,
+		AccessToken: accessToken,
+	})
+	if err != nil {
+		return nil, "", MFA{}, err
+	}
+	return handleAuthResponse(patch(a.remote, bytes.NewBuffer(bts)))
+}
 
 // DeleteUser ...
-func (a *auth) DeleteUser() {}
+func (a *auth) DeleteUser(accessToken string) error {
+	bts, err := json.Marshal(deleteRequest{
+		ClientID:    a.clientID,
+		Secret:      a.clientSecret,
+		AccessToken: accessToken,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = delete(a.remote, bytes.NewBuffer(bts))
+	return err
+}
 
 func handleAuthResponse(res []byte, err error) ([]Account, string, MFA, error) {
 	if err != nil && err == ErrMfaRequired {

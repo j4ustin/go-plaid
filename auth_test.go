@@ -3,8 +3,7 @@ package plaid
 import "testing"
 
 func TestAddUser(t *testing.T) {
-	clnt := testConfiguration(t)
-	auth := UseAuth(clnt)
+	auth := UseAuth(testConfiguration(t))
 	accts, atk, mfa, err := auth.AddUser("plaid_test", "plaid_good", "wells", "")
 	if err != nil {
 		t.Fatal(err)
@@ -35,8 +34,7 @@ func TestAddUser(t *testing.T) {
 }
 
 func TestGetData(t *testing.T) {
-	clnt := testConfiguration(t)
-	auth := UseAuth(clnt)
+	auth := UseAuth(testConfiguration(t))
 	accts, mfa, err := auth.GetData("test_wells")
 	if err != nil {
 		t.Fatal(err)
@@ -46,5 +44,37 @@ func TestGetData(t *testing.T) {
 	}
 	if mfa.Type != "" {
 		t.Errorf("Expected to get no mfa info back")
+	}
+}
+
+func TestMfaStep(t *testing.T) {
+	auth := UseAuth(testConfiguration(t))
+	accts, _, _, err := auth.MfaStep("test_chase", "1234")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accts) != 4 {
+		t.Errorf("Expected 4 accounts got %v", len(accts))
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	auth := UseAuth(testConfiguration(t))
+	accts, _, mfa, err := auth.UpdateUser("plaid_test", "plaid_good", "test_wells")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(accts) != 4 {
+		t.Errorf("Expected 4 accounts got %v", len(accts))
+	}
+	if mfa.Type != "" {
+		t.Errorf("Expected to get no mfa info back")
+	}
+}
+
+func TestDelete(t *testing.T) {
+	auth := UseAuth(testConfiguration(t))
+	if err := auth.DeleteUser("test_wells"); err != nil {
+		t.Fatal(err)
 	}
 }
