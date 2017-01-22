@@ -1,6 +1,11 @@
 package plaid
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+)
 
 // Options allows users to set configurable options for the Plaid client
 type Options func(*Client) error
@@ -45,4 +50,21 @@ func SetEnvironment(url string) Options {
 		c.envURL = url
 		return nil
 	}
+}
+
+// post is a generalized post that checks known status codes from plaid and
+// can deal with errors in a robust manner
+func post(remote string, payload *bytes.Buffer) ([]byte, error) {
+	res, err := http.Post(remote, "application/json", payload)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkStatusCode(res.StatusCode, body); err != nil {
+		return nil, err
+	}
+	return body, nil
 }
