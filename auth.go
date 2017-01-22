@@ -1,6 +1,9 @@
 package plaid
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 // Auth grants access to the Auth product
 type Auth interface {
@@ -75,8 +78,12 @@ func (a *auth) AddMFA() ([]Account, string, error) {
 // GetData ...
 func (a *auth) GetData() {}
 
-// AddUser ...
+// AddUser adds an auth user to plaid and returns a slice of accounts, an access
+// token or an error if these fail. If the user requires MFA then nil will be
+// passed instead of accounts, an access token will be passed, and an
+// MfaRequired error is returned
 func (a *auth) AddUser(username, password, institution, pin string) ([]Account, string, error) {
+	// build request
 	bts, err := json.Marshal(authRequest{
 		ClientID: a.clientID,
 		Secret:   a.clientSecret,
@@ -88,9 +95,22 @@ func (a *auth) AddUser(username, password, institution, pin string) ([]Account, 
 	if err != nil {
 		return nil, "", err
 	}
-	// TODO: add post
+	// send request and parse errors
+	res, err := post(a.remote, bytes.NewBuffer(bts))
+	if err != nil && err == MfaRequired {
+		// return mfa required and pull the access token out of the response
+		ar := accountsRes{}
+		if err = json.Unmarshal(res, &ar); err != nil {
+			return nil, "", err
+		}
+		return nil, ar.AccessToken, MfaRequired
+	}
+	if err != nil {
+		return nil, "", err
+	}
+	// unmarshal and return the accessed accounts and the access token
 	ar := accountsRes{}
-	if err := json.Unmarshal(bts, &ar); err != nil {
+	if err := json.Unmarshal(res, &ar); err != nil {
 		return nil, "", err
 	}
 	return ar.Accounts, ar.AccessToken, nil
