@@ -83,6 +83,18 @@ func patch(remote string, payload *bytes.Buffer) ([]byte, error) {
 	return body, checkStatusCode(res.StatusCode, body)
 }
 
+func get(remote string) ([]byte, error) {
+	res, err := http.Get(remote)
+	if err != nil {
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, checkStatusCode(res.StatusCode, body)
+}
+
 func delete(remote string, payload *bytes.Buffer) ([]byte, error) {
 	req, err := http.NewRequest("DELETE", remote, payload)
 	if err != nil {

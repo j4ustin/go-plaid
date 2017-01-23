@@ -3,6 +3,7 @@ package plaid
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 )
 
 // Auth grants access to the Auth product
@@ -118,7 +119,7 @@ func (a *auth) MfaStep(accessToken, mfaAnswer string) ([]Account, string, MFA, e
 	if err != nil {
 		return nil, "", MFA{}, err
 	}
-	return handleAuthResponse(post(a.remote+"/step", bytes.NewBuffer(bts)))
+	return handleAuthResponse(post(fmt.Sprintf("%v/step", a.remote), bytes.NewBuffer(bts)))
 }
 
 // GetData fetches data from a user already in the auth product
@@ -131,7 +132,7 @@ func (a *auth) GetData(accessToken string) ([]Account, MFA, error) {
 	if err != nil {
 		return nil, MFA{}, err
 	}
-	accts, _, mfa, err := handleAuthResponse(post(a.remote+"/get", bytes.NewBuffer(bts)))
+	accts, _, mfa, err := handleAuthResponse(post(fmt.Sprintf("%v/get", a.remote), bytes.NewBuffer(bts)))
 	return accts, mfa, err
 }
 
