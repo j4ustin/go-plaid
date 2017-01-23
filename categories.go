@@ -42,7 +42,8 @@ func (c *categories) FetchAll() ([]Category, error) {
 		return nil, err
 	}
 	var cts []Category
-	return cts, json.Unmarshal(res, &cts)
+	err = json.Unmarshal(res, &cts)
+	return cts, err
 }
 
 // FetchByID returns a single cateogry
@@ -52,5 +53,6 @@ func (c *categories) FetchByID(id string) (Category, error) {
 		return Category{}, err
 	}
 	ctg := Category{}
-	return ctg, json.Unmarshal(res, &ctg)
+	err = json.Unmarshal(res, &ctg)
+	return ctg, err
 }
