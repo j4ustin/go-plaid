@@ -12,7 +12,7 @@ func TestConfigure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if clnt.envURL != Development {
+	if clnt.envURL != Sandbox {
 		t.Errorf("Expected the default route to point to UAT")
 	}
 	if _, err = Configure("", "", SetEnvironment("bad")); err == nil {
@@ -28,7 +28,7 @@ func TestConfigure(t *testing.T) {
 }
 
 func testConfiguration(t *testing.T) Client {
-	clnt, err := Configure(testID, testSecret, SetEnvironment(Sandbox))
+	clnt, err := Configure(testID, testSecret)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -25,6 +25,13 @@ type updateVersionRequest struct {
 	AccessTokenV1 string `json:"access_token_v1"`
 }
 
+type webhookUpdateRequest struct {
+	ClientID    string `json:"client_id"`
+	Secret      string `json:"secret"`
+	AccessToken string `json:"access_token"`
+	Webhook     string `json:"webhook"`
+}
+
 // GetItem fetches an item and is the first call made for the library
 func GetItem(clnt Client, accessToken string) (Item, error) {
 	bts, err := get(fmt.Sprintf("%v/item/get", clnt.envURL), clnt, Item{
@@ -79,6 +86,31 @@ func UpdateAccessTokenVersion(clnt Client, accessToken string) (Item, error) {
 		return Item{}, err
 	}
 	return GetItem(clnt, ir.AccessToken)
+}
+
+// UpdateWebhook updates an item's webhook
+func (i Item) UpdateWebhook(clnt Client, newURL string) error {
+	bts, err := json.Marshal(webhookUpdateRequest{
+		ClientID:    clnt.clientID,
+		Secret:      clnt.clientSecret,
+		AccessToken: i.AccessToken,
+		Webhook:     newURL,
+	})
+	if err != nil {
+		return err
+	}
+	res, err := http.Post(fmt.Sprintf("%v/item/webhook/update", clnt.envURL), "application/json", bytes.NewBuffer(bts))
+	if err != nil {
+		return err
+	}
+	bts, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != http.StatusOK {
+		return formatError(bts)
+	}
+	return nil
 }
 
 // Delete removes an Item

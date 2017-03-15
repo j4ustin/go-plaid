@@ -91,6 +91,20 @@ type Transaction struct {
 	} `json:"location"`
 }
 
+// Institution represents one institution objects
+type Institution struct {
+	Credentials struct {
+		Label string `json:"label"`
+		Name  string `json:"name"`
+		Type  string `json:"type"`
+	} `json:"credentials"`
+	HasMFA        bool     `json:"has_mfa"`
+	InstitutionID string   `json:"institution_id"`
+	MFA           []string `json:"mfa"`
+	Name          string   `json:"name"`
+	Products      []string `json:"products"`
+}
+
 // Income returns the income type for an item
 type Income struct {
 	Item   string `json:"item"`

@@ -19,21 +19,21 @@ type Client struct {
 }
 
 const (
+	// Sandbox points to the Plaid Sandbox environment
+	Sandbox = "https://sandbox.plaid.com"
+
 	// Development points to the Plaid UAT environment
 	Development = "https://development.plaid.com/"
 
 	// Production points to the Plaid Production environment
 	Production = "https://production.plaid.com/"
-
-	// Sandbox points to the Plaid Sandbox environment
-	Sandbox = "https://sandbox.plaid.com"
 )
 
 // Configure sets up a plaid client and returns interfaces that
 // can be used to request the various products
 func Configure(clientID, clientSecret string, ops ...Option) (Client, error) {
 	clnt := Client{
-		envURL:       Development,
+		envURL:       Sandbox,
 		clientSecret: clientSecret,
 		clientID:     clientID,
 	}

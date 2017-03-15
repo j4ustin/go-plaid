@@ -1,4 +1,4 @@
 # go-plaid
-An alternative golang lib for plaid.com
+Go bindings for the (new) Plaid api 
 
 Docs: https://plaid.com/docs/api
