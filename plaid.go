@@ -2,13 +2,14 @@ package plaid
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
-// Options allows users to set configurable options for the Plaid client
-type Options func(*Client) error
+// Option allows users to set configurable options for the Plaid client
+type Option func(*Client) error
 
 // Client stores client info for Plaid and is passed to utilize Plaid products
 type Client struct {
@@ -18,18 +19,21 @@ type Client struct {
 }
 
 const (
-	// Uat points to the Plaid UAT environment
-	Uat = "https://tartan.plaid.com/"
+	// Development points to the Plaid UAT environment
+	Development = "https://development.plaid.com/"
 
-	// Production points to the plaid Production environment
-	Production = "https://api.plaid.com/"
+	// Production points to the Plaid Production environment
+	Production = "https://production.plaid.com/"
+
+	// Sandbox points to the Plaid Sandbox environment
+	Sandbox = "https://sandbox.plaid.com"
 )
 
 // Configure sets up a plaid client and returns interfaces that
 // can be used to request the various products
-func Configure(clientID, clientSecret string, ops ...Options) (Client, error) {
+func Configure(clientID, clientSecret string, ops ...Option) (Client, error) {
 	clnt := Client{
-		envURL:       Uat,
+		envURL:       Development,
 		clientSecret: clientSecret,
 		clientID:     clientID,
 	}
@@ -41,73 +45,54 @@ func Configure(clientID, clientSecret string, ops ...Options) (Client, error) {
 	return clnt, nil
 }
 
+/*** Options ***/
+
 // SetEnvironment sets the remote URL to which the client will send requests
-func SetEnvironment(url string) Options {
+func SetEnvironment(url string) Option {
 	return func(c *Client) error {
-		if url != Uat && url != Production {
-			return fmt.Errorf("Must select either %v or %v for url", Uat, Production)
+		if url != Development && url != Production && url != Sandbox {
+			return fmt.Errorf("Must select either %v, %v, or %v for url", Development, Sandbox, Production)
 		}
 		c.envURL = url
 		return nil
 	}
 }
 
-// post is a generalized post that checks known status codes from plaid and
-// can deal with errors in a robust manner
-func post(remote string, payload *bytes.Buffer) ([]byte, error) {
-	res, err := http.Post(remote, "application/json", payload)
-	if err != nil {
-		return nil, err
+// SetWebhooks sets up the plaid client to handle webhooks
+func SetWebhooks() Option {
+	return func(c *Client) error {
+		return nil
 	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, checkStatusCode(res.StatusCode, body)
 }
 
-func patch(remote string, payload *bytes.Buffer) ([]byte, error) {
-	req, err := http.NewRequest("PATCH", remote, payload)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, checkStatusCode(res.StatusCode, body)
+/*** Abstract http methods ***/
+
+// getRequest ...
+type getRequest struct {
+	ClientID    string `json:"client_id"`
+	Secret      string `json:"secret"`
+	AccessToken string `json:"access_token"`
 }
 
-func get(remote string) ([]byte, error) {
-	res, err := http.Get(remote)
+func get(url string, clnt Client, i Item) ([]byte, error) {
+	bts, err := json.Marshal(getRequest{
+		ClientID:    clnt.clientID,
+		Secret:      clnt.clientSecret,
+		AccessToken: i.AccessToken,
+	})
 	if err != nil {
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	res, err := http.Post(url, "application/json", bytes.NewBuffer(bts))
 	if err != nil {
 		return nil, err
 	}
-	return body, checkStatusCode(res.StatusCode, body)
-}
-
-func delete(remote string, payload *bytes.Buffer) ([]byte, error) {
-	req, err := http.NewRequest("DELETE", remote, payload)
+	bts, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
+	if res.StatusCode != http.StatusOK {
+		return nil, formatError(bts)
 	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, checkStatusCode(res.StatusCode, body)
+	return bts, nil
 }

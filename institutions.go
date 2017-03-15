@@ -1,4 +1,6 @@
 package plaid
 
-// Institutions grants access to the institutions product
-type Institutions interface{}
+// GetAllInstituions returns all institutions
+func GetAllInstituions(clnt Client) ([]Institution, error) {
+	return nil, nil
+}

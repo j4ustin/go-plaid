@@ -3,56 +3,26 @@ package plaid
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 )
 
-// Categories grants access to the categories product
-type Categories interface {
-	FetchAll() ([]Category, error)
-	FetchByID(string) (Category, error)
+type categoryResponse struct {
+	Categories []Category `json:"categories"`
+	RequestID  string     `json:"requestID"`
 }
 
-// Category stores information about a category
-type Category struct {
-	ID        string
-	Type      string
-	Hierarchy []string
-}
-
-type categories struct {
-	Client
-	remote string
-}
-
-const (
-	catURL = "/categories"
-)
-
-// UseCategory configures an auth product for use
-func UseCategory(clnt Client) Categories {
-	return &categories{
-		remote: clnt.envURL + catURL,
-		Client: clnt,
-	}
-}
-
-// FetchAll returns all categories
-func (c *categories) FetchAll() ([]Category, error) {
-	res, err := get(c.remote)
+// GetAllCategories fetches all categories
+func GetAllCategories(clnt Client) ([]Category, error) {
+	res, err := http.Post(fmt.Sprintf("%v/categories/get", clnt.envURL), "application/json", nil)
 	if err != nil {
 		return nil, err
 	}
-	var cts []Category
-	err = json.Unmarshal(res, &cts)
-	return cts, err
-}
-
-// FetchByID returns a single cateogry
-func (c *categories) FetchByID(id string) (Category, error) {
-	res, err := get(fmt.Sprintf("%v/%v", c.remote, id))
+	bts, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return Category{}, err
+		return nil, err
 	}
-	ctg := Category{}
-	err = json.Unmarshal(res, &ctg)
-	return ctg, err
+	cr := categoryResponse{}
+	err = json.Unmarshal(bts, &cr)
+	return cr.Categories, err
 }
